@@ -15,7 +15,14 @@ git clone https://github.com/mbaldini/robot-vision-tracking.git
 
 You can now run the application by navigating into the robot-vision-tracking project folder and executing the command:
 ```
+sudo python vision-control-robot.py
+```
+
+I have also updated the original web interface from custom-build-robots to allow for easy gamepad control using the HTML5 Gamepad API. You can try this one out by running:
+```
 sudo python control-robot.py
 ```
+
+The gamepad controls are setup for an xbox controller, using the two joypads and the trigger/bumper buttons to control movement.
 
 Be sure to follow the CMUCam5's guidelines on how to train the Pixy. I used Pixymon on windows to train the original image.
