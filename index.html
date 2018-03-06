@@ -155,66 +155,75 @@ function servo6()
   xhttp6.send();
 }
 
-var buttonStates = {};
-var axisStates = {};
+function startTracking() {
+  var xhttp6 = new XMLHttpRequest();
+  xhttp6.open("GET", "http://" + location.host + "/set_tracking", true);
+  xhttp6.send();
+}
+
+var tracking = false;
 
 function scanGamepads() {
   var gp = navigator.getGamepads()[gamepad.index];
   if (gp != null) {
     for (var i = 0; i < gp.buttons.length; i++) {
       if (gp.buttons[i].pressed) {
-	var maxRate = 10;
-	console.log("pressed button : " + i);
+        var maxRate = 10;
+        console.log("pressed button : " + i);
         if(i == 6) {
-	  slider3.value = parseInt(slider3.value) + parseInt(maxRate);
-	  servo3();
-	} else if (i == 7) {
-	  var value = parseInt(slider3.value) - parseInt(maxRate);
-	  slider3.value = value;
-	  servo3();
-	} else if (i == 4) {
-	  var value = parseInt(slider5.value) - parseInt(maxRate);
-	  slider5.value = value;
-	  servo5();
-	} else if (i == 5) {
-	  var value = parseInt(slider5.value) + parseInt(maxRate);
-	  slider5.value = value;
-	  servo5();
-	}
+          slider3.value = parseInt(slider3.value) + parseInt(maxRate);
+          servo3();
+        } else if (i == 7) {
+          var value = parseInt(slider3.value) - parseInt(maxRate);
+          slider3.value = value;
+          servo3();
+        } else if (i == 4) {
+          var value = parseInt(slider5.value) - parseInt(maxRate);
+          slider5.value = value;
+          servo5();
+        } else if (i == 5) {
+          var value = parseInt(slider5.value) + parseInt(maxRate);
+          slider5.value = value;
+          servo5();
+        }
+      }
+      if (i == 0) {
+        if (gp.buttons[i].pressed != tracking) {
+          startTracking();
+          tracking = !tracking;
+        }
       }
     }
 
     for (var i = 0; i < gp.axes.length; i++) {
       var a = gp.axes[i];
-        axisStates[i] = gp.axes[i].toFixed(2);
+      var maxRate = 10; 
 
-	var maxRate = 10; 
-
-	if (i == 0) {
-	  var value = parseInt(slider1.value) + parseInt(-1 * maxRate * gp.axes[i]);
-	  if (value != parseInt(slider1.value)) {
-	    slider1.value = value;
-	    servo1();
-	  }
-	} else if (i == 1) {
-	  var value = parseInt(slider2.value) + parseInt(maxRate * gp.axes[i]);
-	  if (value != parseInt(slider2.value)) {
-	    slider2.value = value;
-	    servo2();
-	  }
-	} else if (i == 3) {
-	  var value = parseInt(slider6.value) + parseInt(-1 * maxRate * gp.axes[i]);
-	  if (value != parseInt(slider6.value)) {
-	    slider6.value = value;
-	    servo6();
-	  }
-	} else if (i == 2) {
-	  var value = parseInt(slider4.value) + parseInt(maxRate * gp.axes[i]);
-	  if (value != parseInt(slider4.value)) {
-	    slider4.value = value;
-	    servo4();
-	  }
-	}
+      if (i == 0) {
+        var value = parseInt(slider1.value) + parseInt(-1 * maxRate * gp.axes[i]);
+        if (value != parseInt(slider1.value)) {
+          slider1.value = value;
+          servo1();
+        }
+      } else if (i == 1) {
+        var value = parseInt(slider2.value) + parseInt(maxRate * gp.axes[i]);
+        if (value != parseInt(slider2.value)) {
+          slider2.value = value;
+          servo2();
+        }
+      } else if (i == 3) {
+        var value = parseInt(slider6.value) + parseInt(-1 * maxRate * gp.axes[i]);
+        if (value != parseInt(slider6.value)) {
+          slider6.value = value;
+          servo6();
+        }
+      } else if (i == 2) {
+        var value = parseInt(slider4.value) + parseInt(maxRate * gp.axes[i]);
+        if (value != parseInt(slider4.value)) {
+          slider4.value = value;
+          servo4();
+        }
+      }
     }
   }
 

@@ -2,8 +2,10 @@ from pixy import *
 from ctypes import *
 from flask import Flask
 from flask import request
+from threading import Thread
 
 import time
+import sys
 
 # Import the Adafruit PCA9685 library
 import Adafruit_PCA9685
@@ -17,6 +19,8 @@ PCA9685_pwm.set_pwm_freq(60)
 # Configure min and max servo pulse lengths
 servo_min = 150  # Min pulse length out of 4096
 servo_max = 600  # Max pulse length out of 4096
+
+track = False
 
 app = Flask(__name__)
 
@@ -69,25 +73,16 @@ def set_servo6():
   PCA9685_pwm.set_pwm(5, 0, int(speed))  
   return "Received " + str(speed)   
 
-def callback(ch, method, properties, body):
-  body = json.loads(body)
-  axis = None
-  position = None
-  
-  if 'axis' in body['data']: axis = body['position']
+@app.route("/set_tracking")
+def set_tracking():
+  track = True
+  start_tracking()
 
-  if 'position' in body['data']: position = body['position']
-
-  if not axis: return
-  if not position: return
-
-  print('got axis %s, position %s' % (axis, position))
-
-  PCA9685_pwm.set_pwm(axis, 0, position)
+  return "received"
 
 def get_center_offset(x, y, w, h):
-  # 320 x 240 resolution
-  # get center of screen
+  # 320 x 180-ish resolution
+  # get center of image
   cx_frame = 320 / 2
   cy_frame = 180 / 2
 
@@ -95,18 +90,8 @@ def get_center_offset(x, y, w, h):
   cx_block = (w / 2) + x
   cy_block = (h / 2) + y
 
-  offset_x = (cx_frame - cx_block) / 10
+  offset_x = (cx_frame - cx_block) / 10 # divide by 10 to slow it down a bit
   offset_y = (cy_frame - cy_block) / 10
-
-  # if cx_frame > cx_block:
-  #   offset_x = 1
-  # elif cx_frame < cx_block:
-  #   offset_x = -1
-  
-  # if cy_frame > cy_block:
-  #   offset_y = 1
-  # elif cy_frame < cy_block:
-  #   offset_y = -1
 
   return [offset_x, offset_y]
 
@@ -119,43 +104,55 @@ class Blocks (Structure):
                ("height", c_uint),
                ("angle", c_uint) ]
 
+def start_tracking():
+  global track 
+  track = False
+
+  blocks = BlockArray(10)
+  frame  = 0
+
+  axis_1_pos = 360
+  axis_6_pos = 390
+
+  # move to center position
+  PCA9685_pwm.set_pwm(0, 0, axis_1_pos)
+  PCA9685_pwm.set_pwm(1, 0, 160)
+  PCA9685_pwm.set_pwm(2, 0, 400)
+  PCA9685_pwm.set_pwm(3, 0, 350)
+  PCA9685_pwm.set_pwm(4, 0, 360)
+  PCA9685_pwm.set_pwm(5, 0, axis_6_pos)
+
+  # Wait for blocks #
+  while 1:
+    count = pixy_get_blocks(10, blocks)
+
+    if count > 0:
+      # Blocks found #
+      frame = frame + 1
+      largest_block = None
+      for index in range (0, count):
+        if largest_block is None:
+          largest_block = blocks[index]
+        elif largest_block.width * largest_block.height < blocks[index].width * blocks[index].height:
+          largest_block = blocks[index]
+
+      if largest_block is not None:
+        offset = get_center_offset(blocks[index].x, blocks[index].y, blocks[index].width, blocks[index].height)
+        axis_1_pos += offset[0]
+        axis_6_pos += offset[1]
+        PCA9685_pwm.set_pwm(0, 0, axis_1_pos)
+        PCA9685_pwm.set_pwm(5, 0, axis_6_pos)
+
+    time.sleep(0.05)
+
 if __name__ == "__main__":
-  # app.run(host='0.0.0.0', port=8181, debug=True)
-  
-  # Initialize Pixy Interpreter thread #
-  pixy_init()
 
-blocks = BlockArray(10)
-frame  = 0
-
-axis_1_pos = 360
-axis_6_pos = 390
-
-# move to center position
-PCA9685_pwm.set_pwm(0, 0, axis_1_pos)
-PCA9685_pwm.set_pwm(5, 0, axis_6_pos)
-
-# Wait for blocks #
-while 1:
-
-  count = pixy_get_blocks(10, blocks)
-
-  if count > 0:
-    # Blocks found #
-    frame = frame + 1
-    largest_block = None
-    for index in range (0, count):
-      if largest_block is None:
-        largest_block = blocks[index]
-      elif largest_block.width * largest_block.height < blocks[index].width * blocks[index].height:
-        largest_block = blocks[index]
-
-    if largest_block is not None:
-      offset = get_center_offset(blocks[index].x, blocks[index].y, blocks[index].width, blocks[index].height)
-      print 'offset x=%d y=%d' % (offset[0], offset[1])
-      axis_1_pos += offset[0]
-      axis_6_pos += offset[1]
-      PCA9685_pwm.set_pwm(0, 0, axis_1_pos)
-      PCA9685_pwm.set_pwm(5, 0, axis_6_pos)
-
-    time.sleep(0.02)
+  try:
+    pixy_init()
+    #app.run(host='0.0.0.0', port=8181, debug=True)
+    start_tracking()
+  except KeyboardInterrupt, SystemExit:
+    PCA9685_pwm.set_pwm(0, 0, 375)
+    PCA9685_pwm.set_pwm(1, 0, 160)
+    PCA9685_pwm.set_pwm(2, 0, 500)
+    sys.exit()
